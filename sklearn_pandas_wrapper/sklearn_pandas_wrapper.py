@@ -140,34 +140,3 @@ class FeatureUnionWrapper(sklearn.base.TransformerMixin):
 
     def transform(self, data_frame=None):
         return self.union.transform(data_frame)
-
-"""
-from sklearn_pandas_wrapper import PandasTransformerWrapper, PandasPipelineWrapper
-import numpy
-import pandas
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, PolynomialFeatures
-from sklearn.decomposition import PCA
-from sklearn_pandas_wrapper import PandasTransformerWrapper
-   
-# wrap sklearn transformer
-imputer = PandasTransformerWrapper(SimpleImputer, strategy='median')
-r = numpy.random.rand(5,3)
-r[0, 0] = numpy.nan
-df = pandas.DataFrame(r, columns=['a', 'b', 'c'])
-# print(df)
-# imputer.fit(df)
-# print(imputer.transform(df))
-# X = pandas.DataFrame([['Male', 1], ['Female', 3], ['Female', 2]], columns=['gender', 'group'])
-X = pandas.DataFrame([[0.5, 1], [0.9, 3], [0.6, 2]], columns=['x1', 'x2'])
-# enc = Pipeline(steps=[('a', PandasTransformerWrapper(OneHotEncoder())),
-#                       ('b', PandasTransformerWrapper(PolynomialFeatures(2))),
-#                      ])
-steps=[('a', PandasTransformerWrapper(OneHotEncoder())),
-       ('b', PandasTransformerWrapper(PolynomialFeatures(2)))
-       ]
-enc = FeatureUnion(steps)
-enc.fit(X)
-print(enc.transform(X))
-"""
