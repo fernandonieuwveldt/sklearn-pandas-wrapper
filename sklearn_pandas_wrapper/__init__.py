@@ -1,1 +1,1 @@
-from .sklearn_pandas_wrapper import PandasTransformerWrapper
+from .sklearn_pandas_wrapper import PandasTransformerWrapper, PandasPipelineWrapper, FeatureUnionWrapper
