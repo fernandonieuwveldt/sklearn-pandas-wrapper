@@ -2,7 +2,7 @@ import sklearn
 import sklearn.pipeline
 import pandas
 import numpy
-import pdb
+
 
 class PandasTransformerWrapper(sklearn.base.TransformerMixin):
     """
@@ -18,6 +18,7 @@ class PandasTransformerWrapper(sklearn.base.TransformerMixin):
         else:
             self.transformer = transformer
         self.transformer_module = type(self.transformer).__dict__['__module__'].split('.')[1]
+        # check if the transformer return type is sparse
         self.is_sparse = self.transformer.get_params().get('sparse', False)
 
     def _validate_transformer(self, transformer=None):
@@ -26,7 +27,7 @@ class PandasTransformerWrapper(sklearn.base.TransformerMixin):
         """
         is_transformer = all(map(lambda method: hasattr(transformer, method), ['fit', 'transform', 'fit_transform']))
         if not is_transformer:
-            raise ValueError('transformer does not contain all of fit, transform and fit_transform methods')
+            raise ValueError('Not a valid transformer')
 
     def _validate_input(self, data_frame=None):
         """
@@ -44,7 +45,7 @@ class PandasTransformerWrapper(sklearn.base.TransformerMixin):
         if self.transformer_module in self._MODULES_NOT_IMPLEMENTED:
             return []
         if hasattr(self.transformer, 'get_feature_names'):
-            return self.transformer.get_feature_names()
+            return self.transformer.get_feature_names(self.feature_names)
         if hasattr(self.transformer, 'get_support'):
             return self.feature_names[self.transformer.get_support()]
         return self.feature_names
@@ -57,15 +58,16 @@ class PandasTransformerWrapper(sklearn.base.TransformerMixin):
         self._validate_input(data_frame)
         # feature names will be used for transform output
         self.feature_names = data_frame.columns
-        # fit valid sklearn transformer
         self.transformer.fit(data_frame)
         return self
 
     def _transform(self, data_frame=None):
+        """
+        Prepare data for data frame output
+        """
         # check if input is valid
         self._validate_input(data_frame)
         # feature names should be the same
-        assert all(data_frame.columns == self.feature_names), "column names of the fitted data had different features"
         feature_names = self._get_feature_names()
         data_frame_transformed = self.transformer.transform(data_frame) 
         # check sparsity: output need to be dense array not sparse
@@ -104,11 +106,11 @@ class PandasPipelineWrapper(sklearn.base.TransformerMixin):
         self.pipeline.fit(data_frame)
         return self
 
-    def transform(self, data_frame=None, y=None):
+    def transform(self, data_frame=None):
         return self.pipeline.transform(data_frame)
 
 
-class FeatureUnionWrapper(sklearn.base.TransformerMixin):
+class PandasFeatureUnionWrapper(sklearn.base.TransformerMixin):
     """
     Wrap FeatureUnion to persist feature names through pipeline
     
@@ -117,6 +119,9 @@ class FeatureUnionWrapper(sklearn.base.TransformerMixin):
         self.steps = steps
 
     def fit(self, data_frame=None, y=None):
+        """
+        Apply PandasTransformerWrapper on all the steps and than fit
+        """
         wrapped_steps = []
         for name, transformer_ in self.steps:
             wrapped_steps.append(
@@ -126,17 +131,22 @@ class FeatureUnionWrapper(sklearn.base.TransformerMixin):
         self.union.fit(data_frame)   
         return self
 
-    def _transform(self, data_frame=None):
-        # check if input is valid
-        self._validate_input(data_frame)
-        # feature names should be the same
-        assert all(data_frame.columns == self.feature_names), "column names of the fitted data had different features"
-        feature_names = self._get_feature_names()
-        data_frame_transformed = self.transformer.transform(data_frame) 
-        # check sparsity: output need to be dense array not sparse
-        if self.is_sparse:
-            data_frame_transformed = data_frame_transformed.toarray()
-        return data_frame_transformed, feature_names
+    def _get_feature_names(self):
+        """
+        Get feature names of all transformers and concatenate
+        """
+        feature_names = []
+        for name, transformer in self.union.transformer_list:
+            feature_names.append(transformer._get_feature_names())
+        return numpy.concatenate(feature_names, axis=0)
 
     def transform(self, data_frame=None):
-        return self.union.transform(data_frame)
+        """
+        Apply transformer and return data frame with feature names
+        """
+        feature_names = self._get_feature_names()
+        data_frame_transformed = self.union.transform(data_frame)
+        if any(feature_names):
+            return pandas.DataFrame(data_frame_transformed, columns=feature_names) 
+        else:
+            return data_frame_transformed
