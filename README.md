@@ -2,6 +2,11 @@
 * Sometimes you want a pandas data frame instead of numpy array return type after applying a transformer. 
 * This package contains a simple implementation for such functionality
 
+## To install package:
+```
+pip install .
+```
+
 Imports for the examples
 
 ```
