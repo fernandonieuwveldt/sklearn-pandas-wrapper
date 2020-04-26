@@ -15,6 +15,8 @@ import pandas
 from sklearn_pandas_wrapper import PandasTransformerWrapper, PandasPipelineWrapper, PandasFeatureUnionWrapper
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder, PolynomialFeatures
+from sklearn.datasets import fetch_openml
+
 ```
 ## Example: Wrapping transformer
 ```
@@ -40,40 +42,18 @@ imputer.transform(df)
 3  0.508684  0.844304  0.916999
 4  0.038216  0.167613  0.582439
 ```
-## Example: a Pipeline can also be wrapped
+## Example: a Pipeline
 ```
-from sklearn import svm 
-from sklearn.datasets import make_classification 
-from sklearn.feature_selection import SelectKBest 
-from sklearn.feature_selection import f_regression 
+# Load data from https://www.openml.org/d/40945
+X, y = fetch_openml("titanic", version=1, as_frame=True, return_X_y=True)
 
-# generate some data to play with 
-X, y = make_classification(n_informative=5, n_redundant=0, random_state=42)
-feature_names = [f"feature_{k}" for k in range(20)]
-X = pandas.DataFrame(X, columns=feature_names)
+categorical_features = ['embarked', 'sex', 'pclass']
+categorical_transformer = PandasPipelineWrapper(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))])
 
-# ANOVA SVM-C 
-anova_filter = SelectKBest(f_regression, k=5) 
-clf = svm.SVC(kernel='linear') 
-
-anova_svm = PandasPipelineWrapper([('anova', anova_filter), ('svc', clf)])
-anova_svm.fit(X, y)
-
-print(anova_svm.predict(X))
-[1 0 0 1 1 1 0 1 0 0 1 0 1 0 0 1 0 1 0 1 0 1 1 0 0 0 0 1 0 1 0 0 1 1 1 1 1
- 0 1 1 1 1 0 0 0 0 0 1 1 0 0 1 0 1 0 0 1 1 1 0 1 0 1 0 0 1 0 1 0 1 1 1 1 0
- 1 0 1 1 1 1 0 1 1 0 0 0 0 1 0 0 1 0 1 1 1 0 1 0 1 0]
-
-# get only the transformers of the pipeline
-print(anova_svm.transform(X))
-    feature_2  feature_3  feature_7  feature_9  feature_11
-0   -0.495969   0.415409   0.966621   0.228924    0.882468
-1   -1.034373   0.330510   1.566519  -1.640187   -0.796247
-2    1.286269   1.062950   1.209124  -2.350830    1.951709
-..        ...        ...        ...        ...         ...
-97   1.531689   1.257103   1.537580   0.805801    1.386351
-98   1.205628   0.552997   0.371916  -0.909731    1.772235
-99   1.769117   1.085767  -0.795152  -1.856569    0.295619
+categorical_transformer.fit(X[categorical_features])
+print(categorical_transformer.transform(X[categorical_features]))
 
 ```
 
