@@ -55,6 +55,13 @@ categorical_transformer = PandasPipelineWrapper(steps=[
 categorical_transformer.fit(X[categorical_features])
 print(categorical_transformer.transform(X[categorical_features]))
 
+      embarked_C  embarked_Q  embarked_S  embarked_missing  sex_female  sex_male  pclass_1.0  pclass_2.0  pclass_3.0
+0            0.0         0.0         1.0               0.0         1.0       0.0         1.0         0.0         0.0
+1            0.0         0.0         1.0               0.0         0.0       1.0         1.0         0.0         0.0
+2            0.0         0.0         1.0               0.0         1.0       0.0         1.0         0.0         0.0
+3            0.0         0.0         1.0               0.0         0.0       1.0         1.0         0.0         0.0
+4            0.0         0.0         1.0               0.0         1.0       0.0         1.0         0.0         0.0
+...
 ```
 
 ## Example: Feature union
