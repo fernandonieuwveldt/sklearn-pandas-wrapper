@@ -4,10 +4,27 @@ import pandas
 import numpy
 
 
+def _wrap_transformer(transformer_list=None):
+    """
+    Wrapper function for steps in Pipeline or FeatureUnion
+    """
+    wrapped_transformers = []
+    for name, transformer in transformer_list:
+       if sklearn.base.is_classifier(transformer) or sklearn.base.is_regressor(transformer):
+           wrapped_step = (name, transformer)
+       elif type(transformer) == sklearn.pipeline.Pipeline:
+           wrapped_step = (name, PandasPipelineWrapper(transformer))
+       else:
+           wrapped_step = (name, PandasTransformerWrapper(transformer))
+       wrapped_transformers.append(wrapped_step)
+    return wrapped_transformers
+
+
 class BaseTransformerWrapper:
     """
     Base wrapper for all transformers
     """
+    _MODULES_NOT_IMPLEMENTED = ['decomposition', 'cross_decomposition']
     def __init__(self, base_transformer_object):
         self._validate_transformer(base_transformer_object)
         self.__class__ = type(base_transformer_object.__class__.__name__,
@@ -25,7 +42,7 @@ class BaseTransformerWrapper:
         if not is_transformer:
             raise ValueError('Not a valid transformer')
 
-    def check_input_type(self, data_frame=None):
+    def _check_input_type(self, data_frame=None):
         """
         validate input data
         """
@@ -43,30 +60,28 @@ class BaseTransformerWrapper:
         if hasattr(self, 'get_feature_names'):
             return self.get_feature_names(self.feature_names)
         if hasattr(self, 'get_support'):
-            return self.feature_names[self.transformer.get_support()]
+            return self.feature_names[self.get_support()]
         return self.feature_names
 
 class PandasTransformerWrapper(BaseTransformerWrapper):
     """
     Wrap sklearn Transformer return type from numpy to pandas with column names
     """
-    _MODULES_NOT_IMPLEMENTED = ['decomposition', 'cross_decomposition']
-
     def fit(self, data_frame=None, y=None):
         """
         Fit the specified transformer and set column names attribute
         """
         # feature names will be used for transform output
-        self.check_input_type(data_frame)
+        self._check_input_type(data_frame)
         self.feature_names = data_frame.columns
-        super(BaseTransformerWrapper, self).fit(data_frame)
+        super(BaseTransformerWrapper, self).fit(data_frame, y)
         return self
 
     def transform(self, data_frame=None, y=None):
         """
         Apply transformer and cast output as a Pandas DataFrame
         """
-        self.check_input_type(data_frame)
+        self._check_input_type(data_frame)
         feature_names = self._get_feature_names()
         data_frame_transformed = super(BaseTransformerWrapper, self).transform(data_frame) 
         # check sparsity: output need to be dense array not sparse
@@ -83,20 +98,8 @@ class PandasPipelineWrapper(sklearn.pipeline.Pipeline):
     Wrap sklearn Pipeline steps with PandasTransformerWrapper
     """
     def __init__(self, steps, **kwargs):
-        super().__init__(steps=self.wrap_transformer(steps),
+        super().__init__(steps=_wrap_transformer(steps),
                          **kwargs)
-
-    # move wrap_transformer to a Mixin class?
-    def wrap_transformer(self, transformer_list=None):
-        wrapped_transformers = []
-        for name, transformer_ in transformer_list:
-            if sklearn.base.is_classifier(transformer_) or sklearn.base.is_regressor(transformer_):
-                # this check should be done in PandasTrasformerWrapper class???
-                wrapped_step = (name, transformer_)
-            else:
-                wrapped_step = (name, PandasTransformerWrapper(transformer_))
-            wrapped_transformers.append(wrapped_step)
-        return wrapped_transformers
 
 
 class PandasFeatureUnionWrapper(sklearn.pipeline.FeatureUnion):
@@ -105,19 +108,8 @@ class PandasFeatureUnionWrapper(sklearn.pipeline.FeatureUnion):
     
     """
     def __init__(self, transformer_list, **kwargs):
-        super().__init__(transformer_list=self.wrap_transformer(transformer_list),
+        super().__init__(transformer_list=_wrap_transformer(transformer_list),
                          **kwargs)
-
-    # potential for a mixin class
-    def wrap_transformer(self, transformer_list=None):
-        wrapped_transformers = []
-        for name, transformer_ in transformer_list:
-            if type(transformer_) == sklearn.pipeline.Pipeline:
-                wrapped_step = (name, PandasPipelineWrapper(transformer_))
-            else:
-                wrapped_step = (name, PandasTransformerWrapper(transformer_))
-            wrapped_transformers.append(wrapped_step)
-        return wrapped_transformers
 
     def _get_feature_names(self):
         """
