@@ -20,7 +20,7 @@ from sklearn.datasets import fetch_openml
 ```
 ## Example: Wrapping transformer
 ```
-imputer = PandasTransformerWrapper(SimpleImputer, strategy='median')
+imputer = PandasTransformerWrapper(SimpleImputer(strategy='median'))
 r = numpy.random.rand(5,3)
 r[0, 0] = numpy.nan
 df = pandas.DataFrame(r, columns=['a', 'b', 'c'])

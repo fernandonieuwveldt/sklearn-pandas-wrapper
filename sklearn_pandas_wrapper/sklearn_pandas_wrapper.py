@@ -3,22 +3,19 @@ import sklearn.pipeline
 import pandas
 import numpy
 
-class PandasTransformerWrapper(sklearn.base.TransformerMixin, sklearn.base.BaseEstimator):
-    """
-    Wrap sklearn Transformer return type from numpy to pandas with column names
 
+class BaseTransformerWrapper:
     """
-    _MODULES_NOT_IMPLEMENTED = ['decomposition', 'cross_decomposition']
-
-    def __init__(self, transformer=None, **kwargs):
-        self._validate_transformer(transformer)
-        if callable(transformer):
-            self.transformer = transformer(**kwargs)
-        else:
-            self.transformer = transformer
-        self.transformer_module = type(self.transformer).__dict__['__module__'].split('.')[1]
-        # check if the transformer return type is sparse
-        self.is_sparse = self.transformer.get_params().get('sparse', False)
+    Base wrapper for all transformers
+    """
+    def __init__(self, base_transformer_object):
+        self._validate_transformer(base_transformer_object)
+        self.__class__ = type(base_transformer_object.__class__.__name__,
+                              (self.__class__, base_transformer_object.__class__),
+                              {})
+        self.__dict__ = base_transformer_object.__dict__
+        self.module = type(base_transformer_object).__dict__['__module__'].split('.')[1]
+        self.is_sparse = self.__dict__.get('sparse', False)
 
     def _validate_transformer(self, transformer=None):
         """
@@ -28,7 +25,7 @@ class PandasTransformerWrapper(sklearn.base.TransformerMixin, sklearn.base.BaseE
         if not is_transformer:
             raise ValueError('Not a valid transformer')
 
-    def _validate_input(self, data_frame=None):
+    def check_input_type(self, data_frame=None):
         """
         validate input data
         """
@@ -41,44 +38,40 @@ class PandasTransformerWrapper(sklearn.base.TransformerMixin, sklearn.base.BaseE
         """
         check type of transformer and return feature names if applicable
         """
-        if self.transformer_module in self._MODULES_NOT_IMPLEMENTED:
+        if self.module in self._MODULES_NOT_IMPLEMENTED:
             return []
-        if hasattr(self.transformer, 'get_feature_names'):
-            return self.transformer.get_feature_names(self.feature_names)
-        if hasattr(self.transformer, 'get_support'):
+        if hasattr(self, 'get_feature_names'):
+            return self.get_feature_names(self.feature_names)
+        if hasattr(self, 'get_support'):
             return self.feature_names[self.transformer.get_support()]
         return self.feature_names
+
+class PandasTransformerWrapper(BaseTransformerWrapper):
+    """
+    Wrap sklearn Transformer return type from numpy to pandas with column names
+    """
+    _MODULES_NOT_IMPLEMENTED = ['decomposition', 'cross_decomposition']
 
     def fit(self, data_frame=None, y=None):
         """
         Fit the specified transformer and set column names attribute
         """
-        # check if input is valid
-        self._validate_input(data_frame)
         # feature names will be used for transform output
+        self.check_input_type(data_frame)
         self.feature_names = data_frame.columns
-        self.transformer.fit(data_frame, y)
+        super(BaseTransformerWrapper, self).fit(data_frame)
         return self
-
-    def _transform(self, data_frame=None):
-        """
-        Prepare data for data frame output
-        """
-        # check if input is valid
-        self._validate_input(data_frame)
-        # feature names should be the same
-        feature_names = self._get_feature_names()
-        data_frame_transformed = self.transformer.transform(data_frame) 
-        # check sparsity: output need to be dense array not sparse
-        if self.is_sparse:
-            data_frame_transformed = data_frame_transformed.toarray()
-        return data_frame_transformed, feature_names
 
     def transform(self, data_frame=None, y=None):
         """
         Apply transformer and cast output as a Pandas DataFrame
         """
-        data_frame_transformed, feature_names = self._transform(data_frame)
+        self.check_input_type(data_frame)
+        feature_names = self._get_feature_names()
+        data_frame_transformed = super(BaseTransformerWrapper, self).transform(data_frame) 
+        # check sparsity: output need to be dense array not sparse
+        if self.is_sparse:
+            data_frame_transformed = data_frame_transformed.toarray()
         if any(feature_names):
             return pandas.DataFrame(data_frame_transformed, columns=feature_names) 
         else:
