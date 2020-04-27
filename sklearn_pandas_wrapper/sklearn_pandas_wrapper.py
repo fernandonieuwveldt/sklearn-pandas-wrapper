@@ -25,6 +25,8 @@ class BaseTransformerWrapper:
     Base wrapper for all transformers
     """
     _MODULES_NOT_IMPLEMENTED = ['decomposition', 'cross_decomposition']
+    _TRANSFORMER_METHODS = ['fit', 'transform', 'fit_transform']
+
     def __init__(self, base_transformer_object):
         self._validate_transformer(base_transformer_object)
         self.__class__ = type(base_transformer_object.__class__.__name__,
@@ -38,7 +40,7 @@ class BaseTransformerWrapper:
         """
         Check if transformer is a valid sklearn transformer
         """
-        is_transformer = all(map(lambda method: hasattr(transformer, method), ['fit', 'transform', 'fit_transform']))
+        is_transformer = all(map(lambda method: hasattr(transformer, method), self._TRANSFORMER_METHODS))
         if not is_transformer:
             raise ValueError('Not a valid transformer')
 
@@ -62,6 +64,7 @@ class BaseTransformerWrapper:
         if hasattr(self, 'get_support'):
             return self.feature_names[self.get_support()]
         return self.feature_names
+
 
 class PandasTransformerWrapper(BaseTransformerWrapper):
     """
@@ -105,7 +108,6 @@ class PandasPipelineWrapper(sklearn.pipeline.Pipeline):
 class PandasFeatureUnionWrapper(sklearn.pipeline.FeatureUnion):
     """
     Wrap FeatureUnion to persist feature names through pipeline
-    
     """
     def __init__(self, transformer_list, **kwargs):
         super().__init__(transformer_list=_wrap_transformer(transformer_list),
