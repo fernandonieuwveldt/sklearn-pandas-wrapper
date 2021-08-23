@@ -9,7 +9,7 @@ pip install .
 
 Imports for the examples
 
-```
+```python
 import numpy
 import pandas
 from sklearn_pandas_wrapper import PandasTransformerWrapper, PandasPipelineWrapper, PandasFeatureUnionWrapper
@@ -19,7 +19,7 @@ from sklearn.datasets import fetch_openml
 
 ```
 ## Example: Wrapping transformer
-```
+```python
 imputer = PandasTransformerWrapper(SimpleImputer(strategy='median'))
 r = numpy.random.rand(5,3)
 r[0, 0] = numpy.nan
@@ -43,7 +43,7 @@ imputer.transform(df)
 4  0.038216  0.167613  0.582439
 ```
 ## Example: a Pipeline
-```
+```python
 # Load data from https://www.openml.org/d/40945
 X, y = fetch_openml("titanic", version=1, as_frame=True, return_X_y=True)
 
@@ -65,7 +65,7 @@ print(categorical_transformer.transform(X[categorical_features]))
 ```
 
 ## Example: Feature union
-```
+```python
 steps=[('a', OneHotEncoder()),
        ('b', PolynomialFeatures(2))
        ]
